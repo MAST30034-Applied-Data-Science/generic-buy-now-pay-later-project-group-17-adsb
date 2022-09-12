@@ -1,9 +1,0 @@
-{
-  "scripts": {
-    "download": "scripts/download.py",
-    "ETL": "preprocess.py"
-  },
-  "data": {
-    "raw": "data/tables"
-  }
-}

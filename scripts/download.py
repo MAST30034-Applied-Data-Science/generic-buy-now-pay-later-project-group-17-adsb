@@ -1,8 +1,14 @@
 from urllib.request import urlretrieve
 import os
+import argparse
+from pathlib import Path
 
-# from the current notebooks directory, go back one level to the data directory
-output_relative_dir = '../data/'
+parser = argparse.ArgumentParser()
+parser.add_argument("output_directory", help="path to output directory", type=Path)
+args = parser.parse_args()
+
+# todo: refactor to use pathlib
+output_relative_dir = str(args.output_directory) + "/"
 
 # check if it exists as it makedir will raise an error if it does exist
 if not os.path.exists(output_relative_dir):
