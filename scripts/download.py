@@ -3,27 +3,25 @@ import os
 import argparse
 from pathlib import Path
 
-parser = argparse.ArgumentParser()
-parser.add_argument("output_directory", help="path to output directory", type=Path)
-args = parser.parse_args()
 
-# todo: refactor to use pathlib
-output_relative_dir = str(args.output_directory) + "/"
+def download_csv(name, urls, rel_dir):
+    # check if it exists as it makedir will raise an error if it does exist
+    if not os.path.exists(rel_dir):
+        os.makedirs(rel_dir)
 
-# check if it exists as it makedir will raise an error if it does exist
-if not os.path.exists(output_relative_dir):
-    os.makedirs(output_relative_dir)
+    print(f"Begin {name}")
+    output_dir = Path(rel_dir, name)
 
-# Download Population Data 
-print(f"Begin population")
-url = 'https://www.abs.gov.au/statistics/people/population/regional-population-age-and-sex/2021/32350DS0005_2001-21.xlsx'
-pop_output_dir = output_relative_dir + 'pop' 
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-if not os.path.exists(pop_output_dir):
-    os.makedirs(pop_output_dir)
+    # download
+    for name, url in urls.items():
+        urlretrieve(url, Path(output_dir, name))
 
-output_dir = f"{pop_output_dir}/pop.csv"
+    print(f"Completed {name}")
 
-# download
-urlretrieve(url, output_dir)
-print(f"Completed population")
+
+def download(output_directory):
+    # Download Population Data
+    download_csv("pop", {"pop.csv": 'https://www.abs.gov.au/statistics/people/population/regional-population-age-and-sex/2021/32350DS0005_2001-21.xlsx'}, output_directory)

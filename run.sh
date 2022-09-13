@@ -1,8 +1,7 @@
 #!/usr/bin/bash
 
-source path.config
 working_directory="${PWD}/"
+config_path="config.toml"
+run_script="scripts/run.py"
 
-python $download_script "${working_directory}${data_directory}"
-python $preprocess_script "${working_directory}${transactions_directory}" "${working_directory}${merchants_file_loc}" "${working_directory}${transactions_output}"
-# python scripts/run.py
+python $run_script $working_directory $config_path
