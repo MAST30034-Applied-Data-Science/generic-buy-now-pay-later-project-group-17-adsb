@@ -1,0 +1,7 @@
+[directories]
+data = 'data/'
+
+[data]
+transactions = 'tables/transactions_20210228_20210827_snapshot/'
+merchants = 'tables/tbl_merchants.parquet'
+transactions_output = 'curated/transactions.parquet'

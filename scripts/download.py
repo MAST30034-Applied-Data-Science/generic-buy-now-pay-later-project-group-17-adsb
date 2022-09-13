@@ -1,23 +1,27 @@
 from urllib.request import urlretrieve
 import os
+import argparse
+from pathlib import Path
 
-# from the current notebooks directory, go back one level to the data directory
-output_relative_dir = '../data/'
 
-# check if it exists as it makedir will raise an error if it does exist
-if not os.path.exists(output_relative_dir):
-    os.makedirs(output_relative_dir)
+def download_csv(name, urls, rel_dir):
+    # check if it exists as it makedir will raise an error if it does exist
+    if not os.path.exists(rel_dir):
+        os.makedirs(rel_dir)
 
-# Download Population Data 
-print(f"Begin population")
-url = 'https://www.abs.gov.au/statistics/people/population/regional-population-age-and-sex/2021/32350DS0005_2001-21.xlsx'
-pop_output_dir = output_relative_dir + 'pop' 
+    print(f"Begin {name}")
+    output_dir = Path(rel_dir, name)
 
-if not os.path.exists(pop_output_dir):
-    os.makedirs(pop_output_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-output_dir = f"{pop_output_dir}/pop.csv"
+    # download
+    for name, url in urls.items():
+        urlretrieve(url, Path(output_dir, name))
 
-# download
-urlretrieve(url, output_dir)
-print(f"Completed population")
+    print(f"Completed {name}")
+
+
+def download(output_directory):
+    # Download Population Data
+    download_csv("pop", {"pop.csv": 'https://www.abs.gov.au/statistics/people/population/regional-population-age-and-sex/2021/32350DS0005_2001-21.xlsx'}, output_directory)

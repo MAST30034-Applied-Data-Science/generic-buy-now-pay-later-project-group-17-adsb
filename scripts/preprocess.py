@@ -1,15 +1,11 @@
 import numpy as np
 import pandas as pd
+import argparse
+from pathlib import Path
 
-data_directory = "../data/"
-tables_directory = data_directory + "tables/"
-transactions_directory = tables_directory + "transactions_20210228_20210827_snapshot/"
-merchants_file_loc = tables_directory + "tbl_merchants.parquet"
 
-transactions_output = data_directory + "curated/transactions.parquet"
-
-def generate_data():
-    merchants = pd.read_parquet(merchants_file_loc)
+def generate_data(merchants_file, transactions_directory, transactions_output):
+    merchants = pd.read_parquet(merchants_file)
     transactions = pd.read_parquet(transactions_directory)
 
     transactions = transactions.merge(merchants, how="left", on="merchant_abn")
@@ -18,5 +14,12 @@ def generate_data():
     transactions.to_parquet(transactions_output)
 
 
-if __name__ == "__main__":
-    generate_data()
+def etl(data_dir, data_config):
+    print("Begin ETL")
+
+    merchants = Path(data_dir, data_config["merchants"]).resolve()
+    transactions = Path(data_dir, data_config["transactions"]).resolve()
+    transactions_output = Path(data_dir, data_config["transactions_output"]).resolve()
+    generate_data(merchants, transactions, transactions_output)
+
+    print("Completed ETL")
