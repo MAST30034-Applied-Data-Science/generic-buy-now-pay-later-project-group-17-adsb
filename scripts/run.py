@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import toml
 import download
+import preprocess
 
 parser = argparse.ArgumentParser()
 parser.add_argument("working_directory", help="absolute path to working directory", type=Path)
@@ -17,3 +18,7 @@ data_directory = config["directories"]["data"]
 
 # download external datasets
 download.download(Path(data_directory).resolve())
+
+# ETL
+preprocess.etl(Path(data_directory).resolve(), config["data"])
+

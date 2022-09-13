@@ -2,6 +2,6 @@
 data = 'data/'
 
 [data]
-transactions_directory = 'tables/transactions_20210228_20210827_snapshot/'
-merchants_file_loc = 'tables/tbl_merchants.parquet'
+transactions = 'tables/transactions_20210228_20210827_snapshot/'
+merchants = 'tables/tbl_merchants.parquet'
 transactions_output = 'curated/transactions.parquet'
