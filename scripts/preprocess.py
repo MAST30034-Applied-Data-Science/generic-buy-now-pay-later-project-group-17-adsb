@@ -27,8 +27,19 @@ def merge_data(transactions, merchants, consumers):
 
 # remove all transactions with values outside of IQR of the merchant
 def remove_outliers(data):
-    pass
+    data_noOutlier = transactions_noNull[~transactions_noNull.groupby('name')['dollar_value'].apply(find_outlier)]
 
+    return data_noOutlier
+
+# Get IQR range and remove outliers
+def find_outlier(merchant):
+    Q3 = np.quantile(merchant,0.75)
+    Q1 = np.quantile(merchant,0.25)
+    IQR = Q3 - Q1
+    lower_limit = Q1 - 1.5*IQR
+    upper_limit = Q3 + 1.5*IQR
+    
+    return ~merchant.between(lower_limit, upper_limit)
 
 def clean(out):
     # out = remove_outliers(out)
