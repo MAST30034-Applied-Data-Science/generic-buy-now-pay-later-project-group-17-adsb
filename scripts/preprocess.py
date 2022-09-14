@@ -9,6 +9,7 @@ def read_transactions(transactions_directories):
 
 
 def get_merchants(merchants_file):
+    # todo: normalise tags
     return pd.read_parquet(merchants_file)
 
 
@@ -24,8 +25,14 @@ def merge_data(transactions, merchants, consumers):
     return transactions
 
 
-def clean(out):
+# remove all transactions with values outside of IQR of the merchant
+def remove_outliers(data):
     pass
+
+
+def clean(out):
+    # out = remove_outliers(out)
+    return out
 
 
 def etl(data_dir, data_config):
@@ -39,6 +46,9 @@ def etl(data_dir, data_config):
 
     # merge all relevant tables
     out = merge_data(transactions, merchants, consumers)
+    out = clean(out)
+
+    # output final data to parquet file
     out.to_parquet(transactions_output)
 
     print("Completed ETL")
