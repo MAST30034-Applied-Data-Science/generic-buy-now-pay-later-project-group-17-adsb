@@ -2,16 +2,23 @@ import numpy as np
 import pandas as pd
 import argparse
 from pathlib import Path
-
+import re
 
 def read_transactions(transactions_directories):
     return pd.concat([pd.read_parquet(trans_dir) for trans_dir in transactions_directories])
 
 
 def get_merchants(merchants_file):
-    # todo: normalise tags
     return pd.read_parquet(merchants_file)
 
+def process_tags(tag):
+    result = re.search(r'^[\[\(]{2}(.+?(?:, ?.+)*)[\]\)], [\[\(]([a-z])[\]\)], [\(\[].+: (\d+\.?\d+)[\)\]]{2}$', tag)
+    return result.group(1), result.group(2), result.group(3)
+
+# todo: implement tag normalisation here, return df with one-hot? columns
+def normalise_tags(merchants):
+    merchants[["sector_tags", "revenue_band", "take_rate"]] = merchants.apply(lambda row: process_tags(row.tags),axis='columns', result_type='expand')
+    return merchants
 
 def get_consumers(consumer_mapping, consumer):
     return pd.read_parquet(consumer_mapping).merge(pd.read_csv(consumer, sep="|"), how="inner", on="consumer_id")
@@ -21,6 +28,7 @@ def merge_data(transactions, merchants, consumers):
     # drop transactions with no valid linked merchant
     transactions = transactions.merge(merchants, how="inner", on="merchant_abn")
     transactions = transactions.merge(consumers, how="left", on="user_id")
+    # todo: merge external dataset here on postcode
     transactions["order_datetime"] = pd.to_datetime(transactions["order_datetime"])
 
     # drop and rename columns
@@ -32,7 +40,7 @@ def merge_data(transactions, merchants, consumers):
 
 # remove all transactions with values outside of IQR of the merchant
 def remove_outliers(data):
-    data_noOutlier = data[~data.groupby('name')['dollar_value'].apply(find_outlier)]
+    data_noOutlier = data[~data.groupby('merchant_name')['dollar_value'].apply(find_outlier)]
 
     return data_noOutlier
 
@@ -49,7 +57,7 @@ def find_outlier(merchant):
 
 
 def clean(out):
-    # out = remove_outliers(out)
+    out = remove_outliers(out)
     return out
 
 
@@ -57,7 +65,7 @@ def etl(data_dir, data_config):
     print("Begin ETL")
 
     # resolve full paths from config and data directory
-    merchants = get_merchants(Path(data_dir, data_config["merchants"]).resolve())
+    merchants = normalise_tags(get_merchants(Path(data_dir, data_config["merchants"]).resolve()))
     transactions = read_transactions([Path(data_dir, path).resolve() for path in data_config["transactions"]])
     consumers = get_consumers(Path(data_dir, data_config["consumer_mapping"]).resolve(), Path(data_dir, data_config["consumer"]).resolve())
     transactions_output = Path(data_dir, data_config["transactions_output"]).resolve()
