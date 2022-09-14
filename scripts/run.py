@@ -1,4 +1,3 @@
-# todo: refactor, bash script runs this script which knows where all necessary scripts are already (in same folder) and reads data paths from .toml config
 import argparse
 from pathlib import Path
 import os
