@@ -32,7 +32,7 @@ def merge_data(transactions, merchants, consumers):
 
 # remove all transactions with values outside of IQR of the merchant
 def remove_outliers(data):
-    data_noOutlier = transactions_noNull[~transactions_noNull.groupby('name')['dollar_value'].apply(find_outlier)]
+    data_noOutlier = data[~data.groupby('name')['dollar_value'].apply(find_outlier)]
 
     return data_noOutlier
 
