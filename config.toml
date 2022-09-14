@@ -2,6 +2,8 @@
 data = 'data/'
 
 [data]
-transactions = 'tables/transactions_20210228_20210827_snapshot/'
+transactions = ['tables/transactions_20210228_20210827_snapshot/', 'tables/transactions_20210828_20220227_snapshot/', 'tables/transactions_20220228_20220828_snapshot']
 merchants = 'tables/tbl_merchants.parquet'
+consumer_mapping = 'tables/consumer_user_details.parquet'
+consumer = 'tables/tbl_consumer.csv'
 transactions_output = 'curated/transactions.parquet'
