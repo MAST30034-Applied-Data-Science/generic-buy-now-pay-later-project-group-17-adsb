@@ -23,15 +23,14 @@ def normalise_tags(merchants):
 def get_consumers(consumer_mapping, consumer):
     return pd.read_parquet(consumer_mapping).merge(pd.read_csv(consumer, sep="|"), how="inner", on="consumer_id")
 
-#def get_census(census_file):
-#    return pd.read_csv(census_file)
+def get_census(census_file):
+    return pd.read_csv(census_file)
 
 def merge_data(transactions, merchants, consumers, census):
     # drop transactions with no valid linked merchant
     transactions = transactions.merge(merchants, how="inner", on="merchant_abn")
     transactions = transactions.merge(consumers, how="left", on="user_id")
-    # todo: merge external dataset here on postcode
-    #transactions = transactions.merge(census, how="left", on="user_id")
+    transactions = transactions.merge(census, how="left", on="postcode")
 
     transactions["order_datetime"] = pd.to_datetime(transactions["order_datetime"])
 
@@ -73,10 +72,10 @@ def etl(data_dir, data_config):
     transactions = read_transactions([Path(data_dir, path).resolve() for path in data_config["transactions"]])
     consumers = get_consumers(Path(data_dir, data_config["consumer_mapping"]).resolve(), Path(data_dir, data_config["consumer"]).resolve())
     transactions_output = Path(data_dir, data_config["transactions_output"]).resolve()
-    #census = get_census(Path(data_dir, data_config["census"]).resolve())
+    census = get_census(Path(data_dir, data_config["census"]).resolve())
 
     # merge all relevant tables
-    out = merge_data(transactions, merchants, consumers)
+    out = merge_data(transactions, merchants, consumers, census)
     out = clean(out)
 
     # output final data to parquet file

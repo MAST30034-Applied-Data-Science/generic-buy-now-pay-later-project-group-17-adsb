@@ -3,6 +3,7 @@ import os
 import argparse
 from pathlib import Path
 
+# todo: add download census data
 
 def download_csv(name, urls, rel_dir):
     # check if it exists as it makedir will raise an error if it does exist
