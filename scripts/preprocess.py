@@ -18,9 +18,14 @@ def get_consumers(consumer_mapping, consumer):
 
 
 def merge_data(transactions, merchants, consumers):
-    transactions = transactions.merge(merchants, how="left", on="merchant_abn")
+    # drop transactions with no valid linked merchant
+    transactions = transactions.merge(merchants, how="inner", on="merchant_abn")
     transactions = transactions.merge(consumers, how="left", on="user_id")
     transactions["order_datetime"] = pd.to_datetime(transactions["order_datetime"])
+
+    # drop and rename columns
+    transactions = transactions.rename(columns={"name_x": "merchant_name", "name_y": "consumer_name"})
+    transactions = transactions.drop(columns=["consumer_id", "address"])
 
     return transactions
 
