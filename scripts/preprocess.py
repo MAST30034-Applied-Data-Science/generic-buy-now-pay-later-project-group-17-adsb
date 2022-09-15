@@ -18,6 +18,7 @@ def process_tags(tag):
 # todo: implement tag normalisation here, return df with one-hot? columns
 def normalise_tags(merchants):
     merchants[["sector_tags", "revenue_band", "take_rate"]] = merchants.apply(lambda row: process_tags(row.tags),axis='columns', result_type='expand')
+    merchants["sector_tags"] = merchants["sector_tags"].str.lower().str.replace(' +', ' ', regex=True).str.strip()
     return merchants
 
 def get_consumers(consumer_mapping, consumer):
