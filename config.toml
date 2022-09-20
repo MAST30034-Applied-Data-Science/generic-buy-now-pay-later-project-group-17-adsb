@@ -6,5 +6,5 @@ transactions = ['tables/transactions_20210228_20210827_snapshot/', 'tables/trans
 merchants = 'tables/tbl_merchants.parquet'
 consumer_mapping = 'tables/consumer_user_details.parquet'
 consumer = 'tables/tbl_consumer.csv'
-transactions_output = 'curated/transactions.parquet'
+output_dir = 'curated'
 census = 'curated/census.csv'

@@ -44,10 +44,13 @@ def merge_data(transactions, merchants, consumers, census):
 
 # remove all transactions with values outside of IQR of the merchant
 def remove_outliers(data):
-    data_noOutlier = data[~data.groupby('merchant_name')['dollar_value'].apply(find_outlier)]
+    data = data.reset_index()
+    data_noOutlier = data[~data.groupby('merchant_abn')['dollar_value'].apply(find_outlier)]
 
-    return data_noOutlier
+    return data_noOutlier.set_index("index")
 
+def remove_nomerchant(transactions, merchants):
+    return transactions[transactions["merchant_abn"].isin(merchants.index.to_numpy())]
 
 # Get IQR range and remove outliers
 def find_outlier(merchant):
@@ -61,7 +64,7 @@ def find_outlier(merchant):
 
 
 def clean(out):
-    out = remove_outliers(out)
+    # out = remove_outliers(out)
     return out
 
 
@@ -69,10 +72,19 @@ def etl(data_dir, data_config):
     print("Begin ETL")
 
     # resolve full paths from config and data directory
+    output_dir = Path(data_dir, data_config["output_dir"]).resolve()
+
     merchants = normalise_tags(get_merchants(Path(data_dir, data_config["merchants"]).resolve()))
+    merchants.to_parquet(Path(output_dir, "merchants.parquet"))
+
     transactions = read_transactions([Path(data_dir, path).resolve() for path in data_config["transactions"]])
+    transactions = remove_nomerchant(transactions, merchants)
+    transactions = remove_outliers(transactions)
+    transactions.to_parquet(Path(output_dir, "transactions.parquet"))
+
     consumers = get_consumers(Path(data_dir, data_config["consumer_mapping"]).resolve(), Path(data_dir, data_config["consumer"]).resolve())
-    transactions_output = Path(data_dir, data_config["transactions_output"]).resolve()
+    consumers.to_parquet(Path(output_dir, "consumers.parquet"))
+
     census = get_census(Path(data_dir, data_config["census"]).resolve())
 
     # merge all relevant tables
@@ -80,6 +92,6 @@ def etl(data_dir, data_config):
     out = clean(out)
 
     # output final data to parquet file
-    out.to_parquet(transactions_output)
+    out.to_parquet(Path(output_dir, "merged_transactions.parquet"))
 
     print("Completed ETL")
