@@ -103,6 +103,8 @@ def etl(data_dir, data_config):
 
     census = preprocess_census(get_census(Path(data_dir, data_config["census"]).resolve()))
     census.to_csv(Path(output_dir, "census.csv"), header=True, index=False)
+    # reread to fix column types
+    census = pd.read_csv(Path(output_dir, "census.csv"))
 
     # merge all relevant tables
     out = merge_data(transactions, merchants, consumers, census)

@@ -24,6 +24,7 @@ def download_csv(name, urls, rel_dir):
     print(f"Completed {name}")
 
 
+# todo: refactor to be more robust and extract in temp folder eg if census_dir = test/census
 # code pulled from external_data.ipynb
 def download_census(data_dir, census_dir):
     print("Begin census")
