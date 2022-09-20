@@ -24,8 +24,24 @@ def normalise_tags(merchants):
 def get_consumers(consumer_mapping, consumer):
     return pd.read_parquet(consumer_mapping).merge(pd.read_csv(consumer, sep="|"), how="inner", on="consumer_id")
 
-def get_census(census_file):
-    return pd.read_csv(census_file)
+
+def get_census(census_dir):
+    G01 = pd.read_csv(Path(census_dir, "2021Census_G01_AUST_POA.csv"))
+    G02 = pd.read_csv(Path(census_dir, "2021Census_G02_AUST_POA.csv"))
+    dataset = pd.merge(G01, G02, how="outer", on=["POA_CODE_2021", "POA_CODE_2021"])
+    return dataset[["POA_CODE_2021", "Tot_P_M", "Tot_P_F","Tot_P_P", "High_yr_schl_comp_Yr_12_eq_M", "High_yr_schl_comp_Yr_12_eq_F", "High_yr_schl_comp_Yr_12_eq_P", "Median_age_persons", "Median_mortgage_repay_monthly", "Median_tot_prsnl_inc_weekly", "Median_tot_hhd_inc_weekly"]]
+
+
+def preprocess_census(dataset):
+    dataset['postcode'] = dataset['POA_CODE_2021'].apply(lambda x: x[3:])
+    dataset['comp_Yr_12_eq_percent'] = dataset['High_yr_schl_comp_Yr_12_eq_P'] / dataset['Tot_P_P']
+    dataset['comp_Yr_12_eq_percent_M'] = dataset['High_yr_schl_comp_Yr_12_eq_M'] / dataset['Tot_P_M']
+    dataset['comp_Yr_12_eq_percent_F'] = dataset['High_yr_schl_comp_Yr_12_eq_F'] / dataset['Tot_P_F']
+    dataset['house_repay_to_income'] = dataset["Median_mortgage_repay_monthly"] / (
+    dataset["Median_tot_hhd_inc_weekly"] * 4.333333)
+
+    dataset = dataset[["postcode", "comp_Yr_12_eq_percent", "comp_Yr_12_eq_percent_M", "comp_Yr_12_eq_percent_F", "house_repay_to_income", "Median_age_persons", "Median_tot_prsnl_inc_weekly", "Median_mortgage_repay_monthly"]]
+    return dataset
 
 def merge_data(transactions, merchants, consumers, census):
     # drop transactions with no valid linked merchant
@@ -85,7 +101,10 @@ def etl(data_dir, data_config):
     consumers = get_consumers(Path(data_dir, data_config["consumer_mapping"]).resolve(), Path(data_dir, data_config["consumer"]).resolve())
     consumers.to_parquet(Path(output_dir, "consumers.parquet"))
 
-    census = get_census(Path(data_dir, data_config["census"]).resolve())
+    census = preprocess_census(get_census(Path(data_dir, data_config["census"]).resolve()))
+    census.to_csv(Path(output_dir, "census.csv"), header=True, index=False)
+    # reread to fix column types
+    census = pd.read_csv(Path(output_dir, "census.csv"))
 
     # merge all relevant tables
     out = merge_data(transactions, merchants, consumers, census)

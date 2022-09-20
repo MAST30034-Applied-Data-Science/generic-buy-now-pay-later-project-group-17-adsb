@@ -16,7 +16,7 @@ config = toml.load(args.config_path)
 data_directory = config["directories"]["data"]
 
 # download external datasets
-download.download(Path(data_directory).resolve())
+download.download(Path(data_directory).resolve(), config["data"]["census"])
 
 # ETL
 preprocess.etl(Path(data_directory).resolve(), config["data"])
