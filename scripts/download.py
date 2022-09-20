@@ -37,7 +37,11 @@ def download_census(data_dir, census_dir):
     shutil.rmtree(Path(data_dir, "Metadata"))
     shutil.rmtree(Path(data_dir, "Readme"))
 
-    os.rename(str(Path(data_dir, "2021 Census GCP Postal Areas for AUS")), str(Path(data_dir, census_dir)))
+    census_path = Path(data_dir, census_dir)
+    if census_path.is_dir():
+        shutil.rmtree(census_path)
+
+    os.rename(Path(data_dir, "2021 Census GCP Postal Areas for AUS"), Path(data_dir, census_path))
 
     print("Completed census")
 
