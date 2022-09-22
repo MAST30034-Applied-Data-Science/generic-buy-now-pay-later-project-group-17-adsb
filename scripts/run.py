@@ -4,6 +4,7 @@ import os
 import toml
 import download
 import preprocess
+import model
 
 parser = argparse.ArgumentParser()
 parser.add_argument("working_directory", help="absolute path to working directory", type=Path)
@@ -21,3 +22,5 @@ download.download(Path(data_directory).resolve(), config["data"]["census"])
 # ETL
 preprocess.etl(Path(data_directory).resolve(), config["data"])
 
+# modelling - sample testing todo: remove
+model.print_sample(Path(data_directory).resolve(), config["data"])
