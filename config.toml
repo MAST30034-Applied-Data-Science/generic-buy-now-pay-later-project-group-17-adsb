@@ -9,3 +9,7 @@ consumer = 'tables/tbl_consumer.csv'
 census = 'census'
 consumer_fraud = 'tables/consumer_fraud_probability.csv'
 output_dir = 'curated'
+
+[model]
+merchant_groupings = 'merchant_groupings.json'
+output_dir = 'models'
