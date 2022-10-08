@@ -137,11 +137,12 @@ def etl(data_dir, data_config):
     merchants.to_parquet(Path(output_dir, "merchants.parquet"))
 
     transactions = read_transactions([Path(data_dir, path).resolve() for path in data_config["transactions"]])
-    transactions = remove_nomerchant(transactions, merchants)
-    transactions = remove_outliers(transactions)
 
     fraud_model = get_fraud_model(transactions, Path(data_dir, data_config["consumer_fraud"]))
     transactions = remove_fraud(transactions, fraud_model)
+
+    transactions = remove_nomerchant(transactions, merchants)
+    transactions = remove_outliers(transactions)
 
     transactions.to_parquet(Path(output_dir, "transactions.parquet"))
 
