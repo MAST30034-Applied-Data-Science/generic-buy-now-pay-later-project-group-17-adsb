@@ -1,8 +1,15 @@
 import numpy as np
 import pandas as pd
-import argparse
+import random
 from pathlib import Path
 import re
+from sklearn.model_selection import train_test_split
+from sklearn import linear_model
+from sklearn import metrics
+
+seed = 42
+random.seed(seed)
+np.random.seed(seed)
 
 def read_transactions(transactions_directories):
     return pd.concat([pd.read_parquet(trans_dir) for trans_dir in transactions_directories])
@@ -15,7 +22,6 @@ def process_tags(tag):
     result = re.search(r'^[\[\(]{2}(.+?(?:, ?.+)*)[\]\)], [\[\(]([a-z])[\]\)], [\(\[].+: (\d+\.?\d+)[\)\]]{2}$', tag)
     return result.group(1), result.group(2), result.group(3)
 
-# todo: implement tag normalisation here, return df with one-hot? columns
 def normalise_tags(merchants):
     merchants[["sector_tags", "revenue_band", "take_rate"]] = merchants.apply(lambda row: process_tags(row.tags),axis='columns', result_type='expand')
     merchants["sector_tags"] = merchants["sector_tags"].str.lower().str.replace(' +', ' ', regex=True).str.strip()
@@ -65,6 +71,43 @@ def remove_outliers(data):
 
     return data_noOutlier.set_index("index")
 
+def remove_fraud(data, fraud_model):
+    consumer_transactions_day = data.groupby(['user_id', 'order_datetime']).agg(total_dollar=pd.NamedAgg(column='dollar_value', aggfunc="sum")).reset_index()
+    consumer_transactions_day["normal_total_dollar"] = (consumer_transactions_day.groupby('user_id')['total_dollar'].apply(lambda x: (x - x.median()) / (x.quantile(0.75) - x.quantile(0.25))))
+    consumer_transactions_day["fraud_prob"] = consumer_transactions_day['normal_total_dollar'].apply(lambda x: (fraud_model.predict([[x]]))[0] if x>2 else 0.00001) / 100
+    consumer_transactions_day["generated_prob"] = np.random.random(size=len(consumer_transactions_day))
+    consumer_transactions_day["remove"] = consumer_transactions_day["generated_prob"] < consumer_transactions_day['fraud_prob']
+
+    consumer_transactions_day = consumer_transactions_day[["user_id", "order_datetime", "remove"]]
+
+    data = data.merge(consumer_transactions_day, how="left", on=["user_id", "order_datetime"])
+    data = data[data["remove"] == False].drop(columns="remove")
+
+    return data
+
+def get_fraud_model(data, fraud_prob_file):
+    fraud_prob = pd.read_csv(fraud_prob_file)
+
+    consumer_transactions_day = data.groupby(['user_id', 'order_datetime']).agg(total_dollar=pd.NamedAgg(column='dollar_value', aggfunc="sum")).reset_index()
+    consumer_transactions_day["normal_total_dollar"] = (consumer_transactions_day.groupby('user_id')['total_dollar'].apply(lambda x: (x-x.median())/(x.quantile(0.75)-x.quantile(0.25))))
+    fraud_consumer_norm_prob = consumer_transactions_day.merge(fraud_prob, how='inner', on=['user_id', 'order_datetime'])
+
+    lm = linear_model.LinearRegression()
+    X = fraud_consumer_norm_prob["normal_total_dollar"]
+    y = fraud_consumer_norm_prob["fraud_probability"]
+
+    X = X.values.reshape(-1, 1)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=seed)
+
+    lm.fit(X_train, y_train)
+    y_pred = lm.predict(X_test)
+    print("Fraud model test R2:", metrics.r2_score(y_test, y_pred))
+
+    # lm.fit(X, y)
+
+    return lm
+
 def remove_nomerchant(transactions, merchants):
     return transactions[transactions["merchant_abn"].isin(merchants.index.to_numpy())]
 
@@ -96,6 +139,10 @@ def etl(data_dir, data_config):
     transactions = read_transactions([Path(data_dir, path).resolve() for path in data_config["transactions"]])
     transactions = remove_nomerchant(transactions, merchants)
     transactions = remove_outliers(transactions)
+
+    fraud_model = get_fraud_model(transactions, Path(data_dir, data_config["consumer_fraud"]))
+    transactions = remove_fraud(transactions, fraud_model)
+
     transactions.to_parquet(Path(output_dir, "transactions.parquet"))
 
     consumers = get_consumers(Path(data_dir, data_config["consumer_mapping"]).resolve(), Path(data_dir, data_config["consumer"]).resolve())
