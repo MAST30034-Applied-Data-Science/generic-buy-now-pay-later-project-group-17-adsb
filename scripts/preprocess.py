@@ -34,19 +34,38 @@ def get_consumers(consumer_mapping, consumer):
 def get_census(census_dir):
     G01 = pd.read_csv(Path(census_dir, "2021Census_G01_AUST_POA.csv"))
     G02 = pd.read_csv(Path(census_dir, "2021Census_G02_AUST_POA.csv"))
-    dataset = pd.merge(G01, G02, how="outer", on=["POA_CODE_2021", "POA_CODE_2021"])
-    return dataset[["POA_CODE_2021", "Tot_P_M", "Tot_P_F","Tot_P_P", "High_yr_schl_comp_Yr_12_eq_M", "High_yr_schl_comp_Yr_12_eq_F", "High_yr_schl_comp_Yr_12_eq_P", "Median_age_persons", "Median_mortgage_repay_monthly", "Median_tot_prsnl_inc_weekly", "Median_tot_hhd_inc_weekly"]]
+    G017 = pd.read_csv(Path(census_dir, "2021Census_G17A_AUST_POA.csv"))
+    G017c = pd.read_csv(Path(census_dir, "2021Census_G17C_AUST_POA.csv"))
+
+    dataset = pd.merge(G01, G02, how="outer", on="POA_CODE_2021")
+    dataset = pd.merge(dataset, G017, how="outer", on="POA_CODE_2021")
+    dataset = pd.merge(dataset, G017c, how="outer", on="POA_CODE_2021")
+
+    high_income_brackets = ["P_3000_3499_Tot", "P_3500_more_Tot", "P_2000_2999_Tot"]
+
+    return dataset[[*high_income_brackets, "POA_CODE_2021", "Tot_P_M", "Tot_P_F","Tot_P_P", "M_Neg_Nil_income_Tot", "F_Neg_Nil_income_Tot", "Median_age_persons", "Median_mortgage_repay_monthly", "Median_tot_prsnl_inc_weekly", "Median_tot_hhd_inc_weekly"]]
 
 
 def preprocess_census(dataset):
-    dataset['postcode'] = dataset['POA_CODE_2021'].apply(lambda x: x[3:])
-    dataset['comp_Yr_12_eq_percent'] = dataset['High_yr_schl_comp_Yr_12_eq_P'] / dataset['Tot_P_P']
-    dataset['comp_Yr_12_eq_percent_M'] = dataset['High_yr_schl_comp_Yr_12_eq_M'] / dataset['Tot_P_M']
-    dataset['comp_Yr_12_eq_percent_F'] = dataset['High_yr_schl_comp_Yr_12_eq_F'] / dataset['Tot_P_F']
-    dataset['house_repay_to_income'] = dataset["Median_mortgage_repay_monthly"] / (
-    dataset["Median_tot_hhd_inc_weekly"] * 4.333333)
+    high_income_brackets = ["P_3000_3499_Tot", "P_3500_more_Tot", "P_2000_2999_Tot"]
 
-    dataset = dataset[["postcode", "comp_Yr_12_eq_percent", "comp_Yr_12_eq_percent_M", "comp_Yr_12_eq_percent_F", "house_repay_to_income", "Median_age_persons", "Median_tot_prsnl_inc_weekly", "Median_mortgage_repay_monthly"]]
+    dataset['postcode'] = dataset['POA_CODE_2021'].apply(lambda x: x[3:])
+
+    dataset['nill_income_percent_M'] = dataset['M_Neg_Nil_income_Tot'] / dataset['Tot_P_M']
+    dataset['nill_income_percent_F'] = dataset['F_Neg_Nil_income_Tot'] / dataset['Tot_P_F']
+
+    dataset["high_income_proportion"] = dataset[high_income_brackets].sum(axis=1) / dataset["Tot_P_P"]
+
+    dataset = dataset[["postcode", "Median_tot_hhd_inc_weekly", 'nill_income_percent_F', 'nill_income_percent_M', "Median_age_persons", "high_income_proportion", "Median_mortgage_repay_monthly"]]
+
+    # 0 is an invalid value for all of the above columns, replace with na
+    dataset = dataset.replace(0, np.nan)
+
+    #impute all NaNs with column medians
+    dataset = dataset.fillna(dataset.median())
+
+    dataset['house_repay_to_income'] = dataset["Median_mortgage_repay_monthly"] / (dataset["Median_tot_hhd_inc_weekly"] * 4.333333)
+
     return dataset
 
 def merge_data(transactions, merchants, consumers, census):
