@@ -52,8 +52,8 @@ def preprocess_census(dataset):
 def merge_data(transactions, merchants, consumers, census):
     # drop transactions with no valid linked merchant
     transactions = transactions.merge(merchants, how="inner", on="merchant_abn")
-    transactions = transactions.merge(consumers, how="left", on="user_id")
-    transactions = transactions.merge(census, how="left", on="postcode")
+    transactions = transactions.merge(consumers, how="inner", on="user_id")
+    transactions = transactions.merge(census, how="inner", on="postcode")
 
     transactions["order_datetime"] = pd.to_datetime(transactions["order_datetime"])
 
@@ -137,11 +137,11 @@ def etl(data_dir, data_config):
     merchants.to_parquet(Path(output_dir, "merchants.parquet"))
 
     transactions = read_transactions([Path(data_dir, path).resolve() for path in data_config["transactions"]])
+    transactions = remove_nomerchant(transactions, merchants)
 
     fraud_model = get_fraud_model(transactions, Path(data_dir, data_config["consumer_fraud"]))
     transactions = remove_fraud(transactions, fraud_model)
 
-    transactions = remove_nomerchant(transactions, merchants)
     transactions = remove_outliers(transactions)
 
     transactions.to_parquet(Path(output_dir, "transactions.parquet"))
