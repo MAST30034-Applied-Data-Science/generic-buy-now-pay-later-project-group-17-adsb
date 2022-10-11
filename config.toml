@@ -12,4 +12,4 @@ output_dir = 'curated'
 
 [model]
 merchant_groupings = 'merchant_groupings.json'
-output_dir = 'models'
+output_dir = 'results'
