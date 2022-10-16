@@ -8,6 +8,16 @@ pd.options.mode.chained_assignment = None
 
 # retention = (Customers End - Customers New) / Customers Start
 def customer_retention(merchant_abn, transactions, month_period):
+    """Calculates monthly customer retentions for a given merchant using retention = (Customers End - Customers New) / Customers Start
+
+    Args:
+        merchant_abn (dataframe): a merchant's abn
+        transactions (dataframe): a df of preprocessed transactions including the given merchant's transactions
+        month_period (dataframe): the number of months in each period to calculate customer retention over
+
+    Returns:
+        (dataframe): an array of customer retentions for each month (over the monthly period)
+    """    
     def month_diff(d1, d2):
         return (d1.year - d2.year) * 12 + d1.month - d2.month
 
@@ -44,6 +54,17 @@ def sigmoid(z):
     return 1/(1 + np.exp(-z))
 
 def get_rankings(merchants, transactions, consumers, census):
+    """Generate and return a ranked set of merchants given preprocessed data
+
+    Args:
+        merchants (dataframe): preprocessed merchants df
+        transactions (dataframe): preprocessed transactions df
+        consumers (dataframe): preprocessed consumers df
+        census (dataframe): preprocessed census df
+
+    Returns:
+        (dataframe): a ranked merchant dataframe including all relevant scoring metrics
+    """    
     transactions["order_datetime"] = pd.to_datetime(transactions["order_datetime"])
 
     # add retention score to rankings
@@ -94,6 +115,7 @@ def get_rankings(merchants, transactions, consumers, census):
 
     census_consumers = consumers.merge(census)
 
+    """ Calculate and return nill income for a single customer based on gender """
     def get_gender_nill_income(x):
         return {"Undisclosed": 0.5 * (x["nill_income_percent_M"] + x["nill_income_percent_F"]),
                 "Female": x["nill_income_percent_F"], "Male": x["nill_income_percent_M"]}[x["gender"]]
@@ -128,11 +150,26 @@ def get_rankings(merchants, transactions, consumers, census):
 
 
 def output_overall(rankings, path, n=100):
+    """Output the overall n top merchants and relevant metrics as a csv
+
+    Args:
+        rankings (dataframe): generated overall rankings df
+        path (PosixPath): path to output to
+        n (int, optional): top n merchants to output. Defaults to 100.
+    """    
     rankings = rankings.sort_values("score", ascending=False).head(n)
     rankings.to_csv(path, index=False)
 
 
 def output_groupings(rankings, dir, groupings, n=10):
+    """Output top n merchants and relevant metrics for each merchant segmentation as a csv
+
+    Args:
+        rankings (dataframe): generated overall rankings df
+        dir (PosixPath): directory to output csvs to
+        groupings (dictionary): mapping of tags to grouping
+        n (int, optional): top n merchants to output for each segment. Defaults to 10.
+    """    
     for group in set(groupings.values()):
         tags_list = [i for i in groupings.keys() if groupings[i] == group]
         group_rankings = rankings[rankings["sector_tags"].isin(tags_list)].sort_values("score", ascending=False).head(n)
@@ -140,6 +177,14 @@ def output_groupings(rankings, dir, groupings, n=10):
 
 
 def output(root_dir, model_config, data_dir, data_config):
+    """Automated function to be called from run script to generate all model related outputs given config
+
+    Args:
+        root_dir (PosixPath): root directory 
+        model_config (dictionary): model related config from config.toml
+        data_dir (PosixPath): data directory
+        data_config (_type_): data related config from config.toml
+    """    
     print("Start Model")
 
     merchant_groupings = json.load(open(Path(root_dir, model_config["merchant_groupings"])))
