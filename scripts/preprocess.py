@@ -12,26 +12,75 @@ random.seed(seed)
 np.random.seed(seed)
 
 def read_transactions(transactions_directories):
+    """Read in transactions into a single dataframe from a list of directories
+
+    Args:
+        transactions_directories (list): list of paths to transaction parquet files
+
+    Returns:
+        dataframe: dataframe of all transactions
+    """        
     return pd.concat([pd.read_parquet(trans_dir) for trans_dir in transactions_directories])
 
 
 def get_merchants(merchants_file):
+    """Read merchants parquet file into a dataframe
+
+    Args:
+        merchants_file (PosixPath): path to merchant parquet file
+
+    Returns:
+        dataframe: dataframe of merchants
+    """    
     return pd.read_parquet(merchants_file)
 
 def process_tags(tag):
+    """Split uncleaned tag string into cleaned tags, take rate and revenue band
+
+    Args:
+        tag (string): uncleaned tag string
+
+    Returns:
+        string, string, string: sector_tags, revenue_band, take_rate of merchant
+    """    
     result = re.search(r'^[\[\(]{2}(.+?(?:, ?.+)*)[\]\)], [\[\(]([a-z])[\]\)], [\(\[].+: (\d+\.?\d+)[\)\]]{2}$', tag)
     return result.group(1), result.group(2), result.group(3)
 
 def normalise_tags(merchants):
+    """Split merchant tags into sector tags, revenue band and take rate, and clean sector tags
+
+    Args:
+        merchants (dataframe): raw merchants dataframe
+
+    Returns:
+        dataframe: cleaned merchants dataframe
+    """    
     merchants[["sector_tags", "revenue_band", "take_rate"]] = merchants.apply(lambda row: process_tags(row.tags),axis='columns', result_type='expand')
     merchants["sector_tags"] = merchants["sector_tags"].str.lower().str.replace(' +', ' ', regex=True).str.strip()
     return merchants
 
 def get_consumers(consumer_mapping, consumer):
+    """Read consumer parquet csv and mapping into a dataframe
+
+    Args:
+        consumer_mapping (PosixPath): path to consumer mapping parquet file
+        consumer (PosixPath): path to consumer csv file
+
+    Returns:
+        dataframe: cleaned consumer dataframe
+    """    
     return pd.read_parquet(consumer_mapping).merge(pd.read_csv(consumer, sep="|"), how="inner", on="consumer_id")
 
 
 def get_census(census_dir):
+    """Select relevant census features
+
+    Args:
+        census_dir (PosixPath): path to census csv
+
+    Returns:
+        dataframe: census data dataframe with relevant features
+    """    
     G01 = pd.read_csv(Path(census_dir, "2021Census_G01_AUST_POA.csv"))
     G02 = pd.read_csv(Path(census_dir, "2021Census_G02_AUST_POA.csv"))
     G017 = pd.read_csv(Path(census_dir, "2021Census_G17A_AUST_POA.csv"))
@@ -47,6 +96,14 @@ def get_census(census_dir):
 
 
 def preprocess_census(dataset):
+    """Engineer relevant census features
+
+    Args:
+        dataset (dataframe): initial census dataframe
+
+    Returns:
+        dataframe: census dataframe with engineered features
+    """    
     high_income_brackets = ["P_3000_3499_Tot", "P_3500_more_Tot", "P_2000_2999_Tot"]
 
     dataset['postcode'] = dataset['POA_CODE_2021'].apply(lambda x: x[3:])
@@ -69,6 +126,17 @@ def preprocess_census(dataset):
     return dataset
 
 def merge_data(transactions, merchants, consumers, census):
+    """Merge data together
+
+    Args:
+        transactions (dataframe): processed transactions dataframe
+        merchants (dataframe): processed merchants dataframe
+        consumers (dataframe): processed consumer dataframe
+        census (dataframe): processed census dataframe
+
+    Returns:
+        dataframe: merged transactions dataframe
+    """    
     # drop transactions with no valid linked merchant
     transactions = transactions.merge(merchants, how="inner", on="merchant_abn")
     transactions = transactions.merge(consumers, how="inner", on="user_id")
@@ -83,28 +151,59 @@ def merge_data(transactions, merchants, consumers, census):
     return transactions
 
 
-# remove all transactions with values outside of IQR of the merchant
 def remove_outliers(data):
+    """Remove all transactions with values outside of IQR of the merchant
+
+    Args:
+        data (dataframe): raw transactions dataframe
+
+    Returns:
+        dataframe: transactions dataframe with outliers removed
+    """    
     data = data.reset_index()
     data_noOutlier = data[~data.groupby('merchant_abn')['dollar_value'].apply(find_outlier)]
 
     return data_noOutlier.set_index("index")
 
 def remove_fraud(data, fraud_model):
+    """Remove likely fradulent transactions based on customer-day spending
+
+    Args:
+        data (dataframe): transactions dataframe
+        fraud_model (sklearn model): model that predicts the fraud probability of transactions
+
+    Returns:
+        dataframe: transactions dataframe with likely fraudulent transactions removed
+    """
+
+    # sum transactions values per customer-day
     consumer_transactions_day = data.groupby(['user_id', 'order_datetime']).agg(total_dollar=pd.NamedAgg(column='dollar_value', aggfunc="sum")).reset_index()
+    # standardise these customer-day transactions
     consumer_transactions_day["normal_total_dollar"] = (consumer_transactions_day.groupby('user_id')['total_dollar'].apply(lambda x: (x - x.median()) / (x.quantile(0.75) - x.quantile(0.25))))
+    # generate fraud probability for scaled values of 2 or more
     consumer_transactions_day["fraud_prob"] = consumer_transactions_day['normal_total_dollar'].apply(lambda x: (fraud_model.predict([[x]]))[0] if x>2 else 0.00001) / 100
+    # remove entries with probability equal to their fraud probability
     consumer_transactions_day["generated_prob"] = np.random.random(size=len(consumer_transactions_day))
     consumer_transactions_day["remove"] = consumer_transactions_day["generated_prob"] < consumer_transactions_day['fraud_prob']
 
     consumer_transactions_day = consumer_transactions_day[["user_id", "order_datetime", "remove"]]
 
+    # remove transactions corresponding to likely fraudlent customer-days
     data = data.merge(consumer_transactions_day, how="left", on=["user_id", "order_datetime"])
     data = data[data["remove"] == False].drop(columns="remove")
 
     return data
 
 def get_fraud_model(data, fraud_prob_file):
+    """Train a fraud model using a linear model
+
+    Args:
+        data (dataframe): tansactions dataframe
+        fraud_prob_file (PosixPath): path to fraud dataset csv
+
+    Returns:
+        sklearn model: fraud model predicting fraud probability from transactions
+    """    
     fraud_prob = pd.read_csv(fraud_prob_file)
 
     consumer_transactions_day = data.groupby(['user_id', 'order_datetime']).agg(total_dollar=pd.NamedAgg(column='dollar_value', aggfunc="sum")).reset_index()
@@ -128,10 +227,27 @@ def get_fraud_model(data, fraud_prob_file):
     return lm
 
 def remove_nomerchant(transactions, merchants):
+    """Remove transactions with no valid linked merchant
+
+    Args:
+        transactions (dataframe): raw transactions dataframe
+        merchants (dataframe): merchants dataframe
+
+    Returns:
+        dataframe: transactions dataframe with transactions with no valid linked merchants removed
+    """    
     return transactions[transactions["merchant_abn"].isin(merchants.index.to_numpy())]
 
 # Get IQR range and remove outliers
 def find_outlier(merchant):
+    """Remove outlying transactions for a given merchant
+
+    Args:
+        merchant (array): transactions of a given merchant
+
+    Returns:
+        array: boolean array of outlying transactions
+    """    
     Q3 = np.quantile(merchant, 0.75)
     Q1 = np.quantile(merchant, 0.25)
     IQR = Q3 - Q1
@@ -141,12 +257,13 @@ def find_outlier(merchant):
     return ~merchant.between(lower_limit, upper_limit)
 
 
-def clean(out):
-    # out = remove_outliers(out)
-    return out
-
-
 def etl(data_dir, data_config):
+    """Run the ETL pipeline, outputting curated data
+
+    Args:
+        data_dir (PosixPath): path to data directory
+        data_config (dict): data configuration
+    """    
     print("Begin ETL")
 
     # resolve full paths from config and data directory
@@ -175,7 +292,6 @@ def etl(data_dir, data_config):
 
     # merge all relevant tables
     out = merge_data(transactions, merchants, consumers, census)
-    out = clean(out)
 
     # output final data to parquet file
     out.to_parquet(Path(output_dir, "merged_transactions.parquet"))
