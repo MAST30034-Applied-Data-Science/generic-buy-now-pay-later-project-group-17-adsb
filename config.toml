@@ -13,3 +13,5 @@ output_dir = 'curated'
 [model]
 merchant_groupings = 'merchant_groupings.json'
 output_dir = 'results'
+output_n = 100
+output_segment_n = 10

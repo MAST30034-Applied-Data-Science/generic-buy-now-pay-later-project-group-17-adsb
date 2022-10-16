@@ -152,7 +152,7 @@ def output(root_dir, model_config, data_dir, data_config):
     census = pd.read_csv(Path(data_output_dir, "census.csv"))
 
     rankings = get_rankings(merchants, transactions, consumers, census)
-    output_overall(rankings, Path(output_dir, "rankings.csv"))
-    output_groupings(rankings, output_dir, merchant_groupings)
+    output_overall(rankings, Path(output_dir, "rankings.csv"), model_config["output_n"])
+    output_groupings(rankings, output_dir, merchant_groupings, model_config["output_segment_n"])
 
     print("Done")

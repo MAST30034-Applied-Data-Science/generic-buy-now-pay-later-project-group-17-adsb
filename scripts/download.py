@@ -4,7 +4,6 @@ from pathlib import Path
 import zipfile
 import shutil
 
-# todo: add download census data
 
 def download_csv(name, urls, rel_dir):
     # check if it exists as it makedir will raise an error if it does exist
@@ -24,7 +23,6 @@ def download_csv(name, urls, rel_dir):
     print(f"Completed {name}")
 
 
-# todo: refactor to be more robust and extract in temp folder eg if census_dir = test/census
 # code pulled from external_data.ipynb
 def download_census(data_dir, census_dir):
     print("Begin census")
