@@ -1,7 +1,7 @@
 # Generic Buy Now, Pay Later Project
 
 ## Env Setup
-Wnsure the latest version of Anaconda is installed. Create a conda env with all required dependencies from the env.yml file provided by running `conda env create -f env.yml` in the project root directory.
+Ensure the latest version of Anaconda is installed. Create a conda env with all required dependencies from the env.yml file provided by running `conda env create -f env.yml` in the project root directory.
 
 
 ## Running the pipeline
