@@ -158,6 +158,7 @@ def output_overall(rankings, path, n=100):
         n (int, optional): top n merchants to output. Defaults to 100.
     """    
     rankings = rankings.sort_values("score", ascending=False).head(n)
+    rankings["rank"] = np.array(rankings.reset_index().index) + 1
     rankings.to_csv(path, index=False)
 
 
@@ -173,6 +174,7 @@ def output_groupings(rankings, dir, groupings, n=10):
     for group in set(groupings.values()):
         tags_list = [i for i in groupings.keys() if groupings[i] == group]
         group_rankings = rankings[rankings["sector_tags"].isin(tags_list)].sort_values("score", ascending=False).head(n)
+        group_rankings["rank"] = np.array(group_rankings.reset_index().index) + 1
         group_rankings.to_csv(Path(dir, group + "_rankings.csv"), index=False)
 
 
