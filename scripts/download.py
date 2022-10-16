@@ -5,26 +5,13 @@ import zipfile
 import shutil
 
 
-def download_csv(name, urls, rel_dir):
-    # check if it exists as it makedir will raise an error if it does exist
-    if not os.path.exists(rel_dir):
-        os.makedirs(rel_dir)
-
-    print(f"Begin {name}")
-    output_dir = Path(rel_dir, name)
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # download
-    for name, url in urls.items():
-        urlretrieve(url, Path(output_dir, name))
-
-    print(f"Completed {name}")
-
-
-# code pulled from external_data.ipynb
 def download_census(data_dir, census_dir):
+    """Download census data and unzip
+
+    Args:
+        data_dir (PosixPath): path to data directory
+        census_dir (PosixPath): path to output census data to
+    """    
     print("Begin census")
 
     url = 'https://www.abs.gov.au/census/find-census-data/datapacks/download/2021_GCP_POA_for_AUS_short-header.zip'
@@ -46,6 +33,11 @@ def download_census(data_dir, census_dir):
 
 
 def download(output_directory, census_dir):
-    # Download Population Data
-    # download_csv("pop", {"pop.csv": 'https://www.abs.gov.au/statistics/people/population/regional-population-age-and-sex/2021/32350DS0005_2001-21.xlsx'}, output_directory)
+    """Download external datasets
+
+    Args:
+        output_directory (PosixPath): directory to output ext datasets to
+        census_dir (PosixPath): path to output census data to
+    """    
+    # Download Census Data
     download_census(output_directory, census_dir)
